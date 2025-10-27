@@ -1,0 +1,29 @@
+provider:
+  name: openai
+  chat_model: gpt-4o-mini
+  embed_model: text-embedding-3-small
+  base_url: https://api.openai.com/v1
+
+paths:
+  docs_dir: ./dir
+  index_dir: ./index
+
+retrieval:
+  chunk_chars: 1200
+  chunk_overlap: 150
+  top_k: 8
+  min_vec_score: 0.22
+  keyword_weight: 0.45
+  require_unique_sources: 3
+
+generation:
+  temperature: 0.2
+  max_tokens: 800
+  system_rules: |
+    You are Agent A, a technical specialist. Answer ONLY based on the provided documentation fragments.
+    Always indicate quotes with [S#] tags and a final list of sources.
+    If there is insufficient information (few relevant fragments or <3 sources), state this directly and ask for clarification or additional documents.
+    No speculation.
+
+ui:
+  answer_header: "Answer (based on local documentation):"

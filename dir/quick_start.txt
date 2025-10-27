@@ -1,0 +1,58 @@
+Quick Start Guide — Agent A
+
+1. Purpose
+Agent A is a local technical assistant that answers questions based on your own documentation files.
+It combines keyword search (Lucene) and vector similarity (OpenAI embeddings) to retrieve the most relevant sections.
+
+2. Requirements
+- Java 17 or newer
+- Maven 3.8+
+- OpenAI API key (environment variable OPENAI_API_KEY)
+- Internet access for the first embedding phase
+
+3. Project Structure
+project_root/
+ ├─ pom.xml
+ ├─ src/
+ │   └─ main/java/Agent/
+ ├─ application.yaml
+ ├─ docs/ or dir/
+ │   ├─ troubleshooting.txt
+ │   ├─ integration_tips.txt
+ │   ├─ config_guide.txt
+ │   └─ quick_start.txt
+ └─ index/ (auto-created)
+
+4. Environment Setup
+PowerShell (Windows):
+  setx OPENAI_API_KEY "sk-..."
+  $env:OPENAI_API_KEY="sk-..."
+
+Unix (bash):
+  export OPENAI_API_KEY="sk-..."
+
+5. Build and Run
+In the project root:
+  mvn -q clean package
+  java -cp target\classes Agent.App
+
+If you built a shaded JAR:
+  java -jar target\agent-a-1.0.0-shaded.jar
+
+6. Reloading the Knowledge Base
+When you add or edit files in the docs folder, type in the agent console:
+  :reload
+This will reindex the documents automatically.
+
+7. Example Questions
+- How do I fix embedding error 401?
+- How can I set environment variables on Windows?
+- Why does Agent A require at least 3 unique sources?
+
+8. Notes
+If you get “The docs folder was not found”, check:
+- The folder path in application.yaml (paths.docs_dir)
+- That it contains at least one .md, .txt, or .pdf file.
+
+If you see “I cannot answer with certainty”, it means too few unique documents matched your query.
+Add more documentation or clarify your question.

@@ -1,0 +1,39 @@
+Configuration Guide
+
+Paths:
+- paths.docs_dir - folder containing .md, .txt, or .pdf documents.
+- paths.index_dir - folder for Lucene index (auto-created if missing).
+
+Retrieval Settings:
+chunk_chars - max characters per chunk (800-1500)
+chunk_overlap - overlap between chunks (100-200)
+top_k - number of chunks retrieved per query (8-12)
+min_vec_score - minimum cosine similarity (0.18-0.25)
+keyword_weight - BM25 weight (0.3-0.5)
+require_unique_sources - minimal number of unique files (3-4)
+
+Generation Settings:
+temperature - creativity (0.0-0.3)
+max_tokens - maximum answer length (600-1000)
+system_rules - system prompt, for example:
+  Answer only based on documentation and cite [S#].
+
+Changing the LLM Provider:
+Default is openai.
+To use Anthropic or Gemini, implement custom LlmClient and register in App.java.
+
+Windows Notes:
+Avoid Cyrillic or spaces in path (use C:\dev\Agent_A).
+Set environment variables:
+  setx OPENAI_API_KEY "sk-..."
+  $env:OPENAI_API_KEY="sk-..."
+Build and run:
+  mvn -q clean package
+  java -cp target\classes Agent.App
+Or with shaded JAR:
+  java -jar target\agent-a-1.0.0-shaded.jar
+
+Response Policy:
+If fewer than required sources are found, Agent A must refuse to guess.
+Each factual statement includes [S#].
+Always append Sources section listing referenced documents.
