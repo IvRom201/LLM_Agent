@@ -9,7 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OpenAiChatClient implements LlmClient{
+public class OpenAiChatClient implements LlmClient {
     private final Settings settings;
     private final OkHttpClient http = new OkHttpClient();
     private final ObjectMapper om = new ObjectMapper();
@@ -19,7 +19,7 @@ public class OpenAiChatClient implements LlmClient{
     }
 
     @Override
-    public String complete(String systemPrompt, String userPrompt, double temperature, int maxTokens) throws Exception{
+    public String complete(String systemPrompt, String userPrompt, double temperature, int maxTokens) throws Exception {
         String apiKey = System.getenv("OPENAI_API_KEY");
         if (apiKey == null || apiKey.isBlank()) throw new IllegalStateException("OPENAI_API_KEY not set");
 
@@ -33,13 +33,17 @@ public class OpenAiChatClient implements LlmClient{
         body.put("max_tokens", maxTokens);
 
         Request request = new Request.Builder()
-                .url(settings.baseUrl() + "/chat/complections")
+                .url(settings.baseUrl() + "/chat/completions")
                 .header("Authorization", "Bearer " + apiKey)
                 .post(RequestBody.create(om.writeValueAsBytes(body), MediaType.parse("application/json")))
                 .build();
 
         try (Response resp = http.newCall(request).execute()) {
-            if (!resp.isSuccessful()) throw new RuntimeException("OpenAI error: " + resp.code() + " " + resp.message());
+            if (!resp.isSuccessful()) {
+                String err = (resp.body() != null) ? resp.body().string() : "";
+                throw new RuntimeException("OpenAI error: " + resp.code() + " " + resp.message()
+                        + (err.isBlank() ? "" : (" | " + err)));
+            }
             var tree = om.readTree(resp.body().byteStream());
             return tree.get("choices").get(0).get("message").get("content").asText();
         }

@@ -24,32 +24,36 @@ public class HybridRetrievier {
 
         float[] qvec = embedder.embedOne(query);
         List<Scored> vec = vectorStore.search(qvec, k);
-
         List<DocChunk> kw = keywordIndex.search(query, k);
 
         Map<String, ScoredChunk> byId = new HashMap<>();
         double kwWeight = settings.keywordWeight();
 
-        for (int i = 0; i < vec.size(); i++) {
-            Scored s = vec.get(i);
+        for (Scored s : vec) {
             if (s.score() < settings.minVecScore()) continue;
             byId.put(s.chunk().chunkId(), new ScoredChunk(s.chunk(), s.score(), 0.0));
         }
 
-        for (int i=0;i<kw.size();i++) {
+        for (int i = 0; i < kw.size(); i++) {
             DocChunk c = kw.get(i);
-            double inc = kwWeight * (1.0 - (double)i / Math.max(1, k));
+            double inc = kwWeight * (1.0 - (double) i / Math.max(1, k));
             byId.merge(c.chunkId(), new ScoredChunk(c, 0, inc),
-                    (a,b) -> new ScoredChunk(a.chunk(), a.vecScore() + b.vecScore(), a.kwScore() + b.kwScore()));
+                    (a, b) -> new ScoredChunk(
+                            a.chunk(),
+                            a.vecScore() + b.vecScore(),
+                            a.kwScore() + b.kwScore()
+                    ));
         }
-        List<ScoredChunk> merged = new ArrayList<>();
+
+        List<ScoredChunk> merged = new ArrayList<>(byId.values());
         merged.sort((a, b) -> Double.compare(b.total(), a.total()));
 
-        LinkedHashMap<String, ScoredChunk> detup = new LinkedHashMap<>();
+        LinkedHashMap<String, ScoredChunk> dedup = new LinkedHashMap<>();
         for (ScoredChunk s : merged) {
-            detup.put(s.chunk().chunkId(), s);
+            dedup.put(s.chunk().chunkId(), s);
         }
-        return detup.values().stream()
+
+        return dedup.values().stream()
                 .limit(k)
                 .toList();
     }
