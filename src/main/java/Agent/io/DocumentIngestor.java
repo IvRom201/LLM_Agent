@@ -40,36 +40,40 @@ public class DocumentIngestor {
         Map<String, String> current = new LinkedHashMap<>();
 
         List<Path> files = listDocFiles(settings.docsDir());
-        List<DocChunk> allChunks = new ArrayList<>();
+
+        boolean needsFullRebuild = (vectorStore.size() == 0);
 
         for (Path p : files) {
             String h = sha1(Files.readAllBytes(p));
             current.put(p.toString(), h);
-            if(h.equals(known.get(p.toString()))) continue;
+        }
 
+        boolean anyChanged = needsFullRebuild || !current.equals(known);
+        if (!anyChanged) return;
+
+        List<DocChunk> allChunks = new ArrayList<>();
+        for (Path p : files) {
             String text = extractText(p);
             String title = stripExt(p.getFileName().toString());
             String sourceId = sha1((p.toAbsolutePath().toString()).getBytes()).substring(0, 10);
             List<String> parts = chunker.split(text);
 
-            List<DocChunk> chunks = new ArrayList<>();
             for (int i = 0; i < parts.size(); i++) {
-                String chunkId = sourceId + "#" + (i+1);
-                chunks.add(new DocChunk(sourceId, title, chunkId, parts.get(i), null));
+                String chunkId = sourceId + "#" + (i + 1);
+                allChunks.add(new DocChunk(sourceId, title, chunkId, parts.get(i), null));
             }
-            allChunks.addAll(chunks);
         }
 
-        if(!allChunks.isEmpty()) {
-            List<float[]> vecs = embedder.embed(allChunks.stream().map(DocChunk::text).toList());
-            for (int i = 0; i < allChunks.size(); i++) {
-                DocChunk c = allChunks.get(i);
-                allChunks.set(i, new DocChunk(c.sourceId(), c.sourceTitle(), c.chunkId(), c.text(), vecs.get(i)));
-            }
-            vectorStore.addAll(allChunks);
-            keywordIndex.addAll(allChunks);
-            saveHashes(current);
+        List<float[]> vecs = embedder.embed(allChunks.stream().map(DocChunk::text).toList());
+        for (int i = 0; i < allChunks.size(); i++) {
+            DocChunk c = allChunks.get(i);
+            allChunks.set(i, new DocChunk(c.sourceId(), c.sourceTitle(), c.chunkId(), c.text(), vecs.get(i)));
         }
+
+        vectorStore.clear();
+        vectorStore.addAll(allChunks);
+        keywordIndex.addAll(allChunks); // internally recreates/wipes
+        saveHashes(current);
     }
 
     public void reingestAll() throws Exception {
@@ -83,7 +87,7 @@ public class DocumentIngestor {
         String name = p.getFileName().toString().toLowerCase();
         if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".pdf")) {
             try (InputStream is = Files.newInputStream(p)) {
-                return tika.parseToString(is); // <-- корректная перегрузка
+                return tika.parseToString(is);
             } catch (IOException | TikaException e) {
                 System.err.println("Tika was unable to parse " + p + ": " + e.getMessage());
                 return "";
@@ -123,16 +127,19 @@ public class DocumentIngestor {
             Map<String, String> map = new HashMap<>();
             for (String l : lines) {
                 int i = l.indexOf('=');
-                map.put(l.substring(0, i), l.substring(i+1));
+                map.put(l.substring(0, i), l.substring(i + 1));
             }
             return map;
-        } catch (IOException e) { return new HashMap<>(); }
-    }
-    private void saveHashes(Map<String, String> m) {
-        try {
-            List<String> lines = m.entrySet().stream().map(e -> e.getKey()+"="+e.getValue()).toList();
-            Files.write(hashFile, lines, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            return new HashMap<>();
+        }
     }
 
+    private void saveHashes(Map<String, String> m) {
+        try {
+            List<String> lines = m.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).toList();
+            Files.write(hashFile, lines, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException ignored) {
+        }
+    }
 }
